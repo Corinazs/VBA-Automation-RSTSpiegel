@@ -1,0 +1,414 @@
+'Passwort Blattschutz: PersonalRst_czs_Reporting
+'
+Sub DatenausSAP()
+
+Dim str_User As String
+Dim str_Password As String
+Dim strSpeicherort As String
+Dim dateiname As String
+Dim int_Jahr As Integer
+Dim int_Monat As Integer
+Dim ws As Workbook
+Dim wsSheet As Worksheet
+Dim gesellschaft As Worksheet
+
+Dim export As Workbook
+Dim exportSheet As Worksheet
+
+Set ws = ThisWorkbook
+Set wsSheet = ws.Sheets("Datengrundlage")
+
+
+'SAP öffnen
+Shell "C:\Program Files (x86)\SAP\FrontEnd\SAPgui\saplogon.exe", 4
+Set WshShell = CreateObject("WScript.Shell")
+
+Set SapGui = GetObject("SAPGUI")
+
+Set Appl = SapGui.GetScriptingEngine
+
+'Set Connection = Appl.Openconnection("2. C20 - QA/Test", True)
+Set Connection = Appl.Openconnection("1. N20 - Production", True)
+
+'SAP Anmeldedaten eingeben
+login = MsgBox("Please log in to SAP, then confirm with 'OK'.", vbOKCancel, "SAP")
+
+Set session = Connection.Children(0)
+
+
+temp = 0
+While (temp = 0)
+
+    int_Jahr = InputBox("Which year do you want to export?", "Reported Year")
+    int_Monat = InputBox("Until which month do you want to report? Please insert the number of the month. E.g. '9' for 'september'.", "Reported Month")
+   
+    temp = 1
+    
+    If (int_Jahr = Null Or int_Monat = Null) Then
+        fehler = MsgBox("Please insert Data.", vbOKOnly, "Error")
+        temp = 0
+    End If
+    
+    If (int_Monat < 1 Or int_Monat > 12) Then
+        fehler = MsgBox("Please insert correct moth.", vbOKOnly, "Error")
+        temp = 0
+    End If
+    
+    If (int_Jahr < 2000 Or int_Jahr > Year(Date)) Then
+        fehler = MsgBox("Please insert correct year.", vbOKOnly, "Error")
+        temp = 0
+    End If
+    
+    If Not (IsNumeric(int_Monat) = True) Then
+      fehler = MsgBox("The inserted month is not a number. Please try again.", vbOKOnly, "Error")
+      temp = 0
+    End If
+    
+    If Not (IsNumeric(int_Jahr) = True) Then
+      fehler = MsgBox("The inserted year is not a number. Please try again.", vbOKOnly, "Error")
+      temp = 0
+    End If
+    
+Wend
+If (int_Monat < 10) Then
+    dateiname = "0002_Rückstellungsspiegel SOX_0" & int_Monat & "." & int_Jahr
+    ActiveWorkbook.SaveAs "\\de.teva.corp\daten\Reporting & Tax\Reporting nach Legal Entities\ratiopharm GmbH\" & int_Jahr & "\0" & int_Monat & " " & int_Jahr & "\SOX\" & dateiname & ".xlsm"
+                            
+End If
+
+If (int_Monat >= 10) Then
+    dateiname = "0002_Rückstellungsspiegel SOX_" & int_Monat & "." & int_Jahr
+        ActiveWorkbook.SaveAs "\\de.teva.corp\daten\Reporting & Tax\Reporting nach Legal Entities\ratiopharm GmbH\" & int_Jahr & "\" & int_Monat & " " & int_Jahr & "\SOX\" & dateiname & ".xlsm"
+
+End If
+
+
+'Daten eingeben
+session.findById("wnd[0]").maximize
+session.findById("wnd[0]/usr/cntlIMAGE_CONTAINER/shellcont/shell/shellcont[0]/shell").doubleClickNode "F00002"
+session.findById("wnd[0]/usr/ctxtSD_KTOPL-LOW").Text = "ACOA"
+session.findById("wnd[0]/usr/ctxtSD_KTOPL-LOW").caretPosition = 4
+session.findById("wnd[0]/usr/btn%_SD_BUKRS_%_APP_%-VALU_PUSH").press
+
+'Buchungskreise auswählen
+session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/ctxtRSCSEL_255-SLOW_I[1,0]").Text = "0002"
+
+session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/ctxtRSCSEL_255-SLOW_I[1,7]").SetFocus
+session.findById("wnd[1]/usr/tabsTAB_STRIP/tabpSIVA/ssubSCREEN_HEADER:SAPLALDB:3010/tblSAPLALDBSINGLE/ctxtRSCSEL_255-SLOW_I[1,7]").caretPosition = 4
+session.findById("wnd[1]/tbar[0]/btn[8]").press
+session.findById("wnd[0]/usr/radPRSSALL").Select
+
+'Berichtsjahr und Monate eingeben
+session.findById("wnd[0]/usr/ctxtB0JAHR").Text = int_Jahr
+session.findById("wnd[0]/usr/txtB0MONA-LOW").Text = "1"
+session.findById("wnd[0]/usr/txtB0MONA-HIGH").Text = int_Monat
+
+'Abruf durchführen
+session.findById("wnd[0]/usr/txtB0MONA-HIGH").SetFocus
+session.findById("wnd[0]/usr/txtB0MONA-HIGH").caretPosition = 2
+'MsgBox "SAP is working. This could last a few minutes. Please wait."
+
+session.findById("wnd[0]/tbar[1]/btn[8]").press
+
+'Als Excel XXL exportieren (ohne Zwischensummen)
+session.findById("wnd[0]").maximize
+session.findById("wnd[0]/mbar/menu[0]/menu[3]/menu[1]").Select
+session.findById("wnd[1]/usr/cmbG_LISTBOX").SetFocus
+session.findById("wnd[1]/usr/cmbG_LISTBOX").Key = "08"
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+session.findById("wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[0,0]").Select
+session.findById("wnd[1]/usr/subSUBSCREEN_STEPLOOP:SAPLSPO5:0150/sub:SAPLSPO5:0150/radSPOPLI-SELFLAG[0,0]").SetFocus
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+
+
+dateiname = Year(Now) & Month(Now) & Day(Now) & "_Rückstellungen_SAPDatengrundlage_0002"
+
+'Datei auf Laufwerk speichern
+ActiveWorkbook.SaveAs "\\de.teva.corp\daten\Reporting & Tax\Reporting nach Legal Entities\ratiopharm GmbH\VBA_Archiv\" & dateiname & ".xlsx"
+'ActiveWorkbook.SaveAs "C:\Users\czilchschu\Desktop\Archiv\" & dateiname & ".xlsx"
+
+'exportierte Datei schließen
+session.findById("wnd[1]/tbar[0]/btn[0]").press
+
+'Datei öffnen
+'Set export = Workbooks.Open("C:\Users\czilchschu\Desktop\Archiv\" & dateiname & ".xlsx")
+Set export = Workbooks.Open("\\de.teva.corp\daten\Reporting & Tax\Reporting nach Legal Entities\ratiopharm GmbH\VBA_Archiv\" & dateiname & ".xlsx")
+Set exportSheet = export.Sheets("Tabelle1")
+
+'letzteZeile in wsSheet=Rückstellungsspiegel
+letzteZeile = wsSheet.Cells(Rows.Count, 1).End(xlUp).Row
+
+'wsSheet leeren
+wsSheet.Range("A6:R" & letzteZeile).Delete
+
+'letzteZeile in export
+letzteZeileEx = exportSheet.Cells(Rows.Count, 1).End(xlUp).Row
+
+'aus export Daten kopieren + in wsSheet einfügen
+exportSheet.Range("A2:R" & letzteZeileEx).Copy _
+    Destination:=wsSheet.Range("A6:R" & letzteZeileEx)
+    
+'ExportDatei schließen
+export.Close
+
+'------------------------------------------'
+
+letzteZeile = wsSheet.Cells(Rows.Count, 1).End(xlUp).Row
+
+
+Set gesellschaft = ws.Sheets("0002_ratiopharm")
+
+'Pivot aktualisieren
+ If (int_Monat < 10) Then
+    gesellschaft.PivotTables("PivotTable1").ChangePivotCache ActiveWorkbook. _
+    PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+    "\\de.teva.corp\daten\Reporting & Tax\Reporting nach Legal Entities\ratiopharm GmbH\" & int_Jahr & "\0" & int_Monat & " " & int_Jahr & "\SOX\[0002_Rückstellungsspiegel SOX_0" & int_Monat & "." & int_Jahr & ".xlsm]Datengrundlage!R5C1:R" & letzteZeile & "C18" _
+    , Version:=6)
+   End If
+   
+If (int_Monat >= 10) Then
+    gesellschaft.PivotTables("PivotTable1").ChangePivotCache ActiveWorkbook. _
+    PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+    "\\de.teva.corp\daten\Reporting & Tax\Reporting nach Legal Entities\ratiopharm GmbH\" & int_Jahr & "\" & int_Monat & " " & int_Jahr & "\SOX\[0002_Rückstellungsspiegel SOX_" & int_Monat & "." & int_Jahr & ".xlsm]Datengrundlage!R5C1:R" & letzteZeile & "C18" _
+    , Version:=6)
+End If
+   
+   
+Call SheetsAktualieren(gesellschaft)
+Call DatumÄndern(gesellschaft, int_Monat)
+
+'für US-GAAP Ansicht (alle 1er Konten)
+Set gesellschaft = ws.Sheets("US-GAAP_0002_ratiopharm")
+ If (int_Monat < 10) Then
+     gesellschaft.PivotTables("PivotTable1").ChangePivotCache ActiveWorkbook. _
+    PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+    "\\de.teva.corp\daten\Reporting & Tax\Reporting nach Legal Entities\ratiopharm GmbH\" & int_Jahr & "\0" & int_Monat & " " & int_Jahr & "\SOX\[0002_Rückstellungsspiegel SOX_0" & int_Monat & "." & int_Jahr & ".xlsm]Datengrundlage!R5C1:R" & letzteZeile & "C18" _
+    , Version:=6)
+End If
+
+If (int_Monat >= 10) Then
+     gesellschaft.PivotTables("PivotTable1").ChangePivotCache ActiveWorkbook. _
+    PivotCaches.Create(SourceType:=xlDatabase, SourceData:= _
+    "\\de.teva.corp\daten\Reporting & Tax\Reporting nach Legal Entities\ratiopharm GmbH\" & int_Jahr & "\" & int_Monat & " " & int_Jahr & "\SOX\[0002_Rückstellungsspiegel SOX_" & int_Monat & "." & int_Jahr & ".xlsm]Datengrundlage!R5C1:R" & letzteZeile & "C18" _
+    , Version:=6)
+End If
+        
+Call PivotKontenAusblenden(gesellschaft)
+Call SheetsAktualieren(gesellschaft)
+Call DatumÄndern(gesellschaft, int_Monat)
+
+
+Final = MsgBox("Evaluation completed.", vbOKOnly, "Finished")
+
+End Sub
+Sub PivotKontenAusblenden(gesellschaft As Worksheet)
+
+  Dim bolVisible As Boolean
+  Dim pvTab As PivotTable
+  Dim pvField As PivotField, pvItem As PivotItem
+  Dim index As Integer
+  
+  Set pvTab = gesellschaft.PivotTables(1)
+  Set pvField = pvTab.PivotFields("Loc.Acc.")
+  
+  Dim arrValues As Variant
+  
+  Application.ScreenUpdating = False
+
+
+  pvTab.RefreshTable
+  pvField.ClearAllFilters
+  
+  For Each pvItem In pvField.VisibleItems
+    bolVisible = True
+   
+        If Not (VBA.left(pvItem.name, 1) = 1 Or VBA.left(pvItem.name, 1) = 2) Then
+            bolVisible = False
+
+        End If
+
+    
+    If bolVisible = False Then pvItem.Visible = False
+  Next pvItem
+  Application.ScreenUpdating = True
+
+End Sub
+Sub DatumÄndern(gesellschaft As Worksheet, int_Monat As Variant)
+
+If (int_Monat = 1 Or int_Monat = 3 Or int_Monat = 5 Or int_Monat = 7 Or int_Monat = 8 Or int_Monat = 10 Or int_Monat = 12) Then
+    gesellschaft.Cells(4, 17).Value = DateSerial(Year(Now), int_Monat, 31)
+End If
+
+If (int_Monat = 4 Or int_Monat = 6 Or int_Monat = 9 Or int_Monat = 11) Then
+    gesellschaft.Cells(4, 17).Value = DateSerial(Year(Now), int_Monat, 30)
+End If
+
+If (int_Monat = 2) Then
+
+    If Year(Now) Mod 4 = 0 And Year(Now) Mod 100 <> 0 Or Year(Now) Mod 400 = 0 Then
+       gesellschaft.Cells(4, 17).Value = DateSerial(Year(Now), int_Monat, 29)
+    Else
+        gesellschaft.Cells(4, 17).Value = DateSerial(Year(Now), int_Monat, 28)
+    End If
+    
+End If
+
+End Sub
+
+Sub SheetsAktualieren(gesellschaft As Worksheet)
+
+letzteZeileSheets = gesellschaft.Cells(Rows.Count, 3).End(xlUp).Row
+letzteZeilealt = gesellschaft.Cells(Rows.Count, 12).End(xlUp).Row
+'Daten leeren
+gesellschaft.Range("L5:T" & letzteZeilealt) = ""
+gesellschaft.Range("W5:Y8") = ""
+
+For i = 5 To letzteZeileSheets + 2 'läuft runter
+    'AB=R00
+    If (gesellschaft.Cells(4, 5).Value = "R00") Then
+        gesellschaft.Cells(i, 12).Value = -gesellschaft.Cells(i, 5).Value
+    End If
+    
+    'Verbrauch = R02
+    If (gesellschaft.Cells(4, 7).Value = "R02") Then
+        gesellschaft.Cells(i, 14).Value = -(gesellschaft.Cells(i, 7).Value)
+    End If
+    
+    'Auflösung = R03
+     If (gesellschaft.Cells(4, 8).Value = "R03") Then
+        gesellschaft.Cells(i, 15).Value = -(gesellschaft.Cells(i, 8).Value)
+     End If
+    
+    'Zuführung = R01+R06+R07
+    If (gesellschaft.Cells(4, 6).Value = "R01" And gesellschaft.Cells(4, 9).Value = "R06" And gesellschaft.Cells(4, 10).Value = "R07") Then 'R03+R06+R07=Zuführung
+        gesellschaft.Cells(i, 16).Value = -gesellschaft.Cells(i, 6).Value - gesellschaft.Cells(i, 9).Value - gesellschaft.Cells(i, 10).Value
+    End If
+    'falls nur R01 vorhanden laut Auswertung
+    If (gesellschaft.Cells(4, 6).Value = "R01" And gesellschaft.Cells(4, 9).Value <> "R06" And gesellschaft.Cells(4, 10).Value <> "R07") Then 'R01+R06+R07=Zuführung
+        gesellschaft.Cells(i, 16).Value = -gesellschaft.Cells(i, 6).Value
+    End If
+    'falls nur R01+R06 vorhanden laut Auswertung
+    If (gesellschaft.Cells(4, 6).Value = "R01" And gesellschaft.Cells(4, 9).Value = "R06" And gesellschaft.Cells(4, 10).Value <> "R07") Then 'R01+R06+R07=Zuführung
+        gesellschaft.Cells(i, 16).Value = -gesellschaft.Cells(i, 6).Value - gesellschaft.Cells(i, 9).Value
+    End If
+    'falls nur R01+R07 vorhanden laut Auswertung
+    If (gesellschaft.Cells(4, 6).Value = "R01" And gesellschaft.Cells(4, 9).Value = "R07") Then 'R01+R06+R07=Zuführung
+        gesellschaft.Cells(i, 16).Value = -gesellschaft.Cells(i, 6).Value - gesellschaft.Cells(i, 9).Value
+    End If
+    'falls nur R06+R07 vorhanden laut Auswertung
+    If (gesellschaft.Cells(4, 8).Value = "R06" And gesellschaft.Cells(4, 9).Value = "R07") Then 'R01+R06+R07=Zuführung
+        gesellschaft.Cells(i, 16).Value = -gesellschaft.Cells(i, 6).Value - gesellschaft.Cells(i, 9).Value
+    End If
+       
+    'EB
+    gesellschaft.Cells(i, 17).Value = gesellschaft.Cells(i, 12).Value + gesellschaft.Cells(i, 13).Value + gesellschaft.Cells(i, 14).Value + gesellschaft.Cells(i, 15).Value + gesellschaft.Cells(i, 16).Value
+    
+    'Offen aus VJ
+    gesellschaft.Cells(i, 19).Value = gesellschaft.Cells(i, 12).Value + gesellschaft.Cells(i, 14).Value + gesellschaft.Cells(i, 15).Value
+    
+Next
+
+Dim arr_speicher(50) As Integer
+'finde die Zwischensummen
+k = 0
+For i = 1 To letzteZeileSheets + 1
+        If (gesellschaft.Range("C" & i).MergeCells) Then 'Wenn in B verbundene Zellen = Zwischensumme
+            zs = i 'merke in welcher Zeile Zwischensumme
+            arr_speicher(k) = zs
+            k = k + 1
+        End If
+Next
+
+'alte Formatierung löschen
+    With gesellschaft.Range("L5:S" & 500).Interior
+        .Pattern = xlNone
+        .TintAndShade = 0
+        .PatternTintAndShade = 0
+    End With
+    gesellschaft.Range("L5:S" & 500).Borders(xlDiagonalDown).LineStyle = xlNone
+    gesellschaft.Range("L5:S" & 500).Borders(xlDiagonalUp).LineStyle = xlNone
+    gesellschaft.Range("L5:S" & 500).Borders(xlEdgeLeft).LineStyle = xlNone
+    gesellschaft.Range("L5:S" & 500).Borders(xlEdgeTop).LineStyle = xlNone
+    gesellschaft.Range("L5:S" & 500).Borders(xlEdgeBottom).LineStyle = xlNone
+    gesellschaft.Range("L5:S" & 500).Borders(xlEdgeRight).LineStyle = xlNone
+    gesellschaft.Range("L5:S" & 500).Borders(xlInsideVertical).LineStyle = xlNone
+    gesellschaft.Range("L5:S" & 500).Borders(xlInsideHorizontal).LineStyle = xlNone
+
+'Währung und Format anpassen
+ gesellschaft.Range("L5:S" & letzteZeileSheets + 2).NumberFormat = "$#,##0.00_);[Red]($#,##0.00)"
+ k = 0
+i = arr_speicher(k)
+    While (arr_speicher(k) <> 0)
+        gesellschaft.Range("B" & i & ":S" & i).Font.Bold = True
+        With gesellschaft.Range("B" & i & ":S" & i).Interior
+            .Pattern = xlSolid
+            .PatternColorIndex = xlAutomatic
+            .ThemeColor = xlThemeColorAccent6
+            .TintAndShade = 0.599993896298105
+            .PatternTintAndShade = 0
+        End With
+        k = k + 1
+        i = arr_speicher(k)
+    Wend
+'blau
+    gesellschaft.Range("L" & letzteZeileSheets + 2 & ":S" & letzteZeileSheets + 2).Font.Bold = True
+        With gesellschaft.Range("L" & letzteZeileSheets + 2 & ":S" & letzteZeileSheets + 2).Interior
+            .Pattern = xlSolid
+            .PatternColorIndex = xlAutomatic
+            .ThemeColor = xlThemeColorAccent1
+            .TintAndShade = 0.799981688894314
+            .PatternTintAndShade = 0
+        End With
+        
+    gesellschaft.Range("L5:S" & letzteZeileSheets + 2).Borders(xlDiagonalDown).LineStyle = xlNone
+    gesellschaft.Range("L5:S" & letzteZeileSheets + 2).Borders(xlDiagonalUp).LineStyle = xlNone
+    With gesellschaft.Range("L5:S" & letzteZeileSheets + 2).Borders(xlEdgeLeft)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With gesellschaft.Range("L5:S" & letzteZeileSheets + 2).Borders(xlEdgeTop)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With gesellschaft.Range("L5:S" & letzteZeileSheets + 2).Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With gesellschaft.Range("L5:S" & letzteZeileSheets + 2).Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With gesellschaft.Range("L5:S" & letzteZeileSheets + 2).Borders(xlInsideVertical)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With gesellschaft.Range("L5:S" & letzteZeileSheets + 2).Borders(xlInsideHorizontal)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    
+    gesellschaft.Range("R2").Copy
+    gesellschaft.Range("R5:R" & letzteZeileSheets + 2).PasteSpecial Paste:=xlPasteFormats, Operation:=xlNone, _
+        SkipBlanks:=False, Transpose:=False
+    Application.CutCopyMode = False
+    
+
+End Sub
+
+
+
+
