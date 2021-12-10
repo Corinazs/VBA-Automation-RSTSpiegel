@@ -172,9 +172,6 @@ If (int_Monat >= 10) Then
     , Version:=6)
 End If
    
-   
-Call SheetsAktualieren(gesellschaft)
-Call DatumÄndern(gesellschaft, int_Monat)
 
 'für US-GAAP Ansicht (alle 1er Konten)
 Set gesellschaft = ws.Sheets("XXX")
